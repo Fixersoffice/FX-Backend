@@ -1,8 +1,6 @@
 const JWT = require("jsonwebtoken");
 require("dotenv").config();
 
-const secret = process.env.FIXERS_ACCESS_TOKEN_SECRET;
-
 module.exports = {
   signAccessToken: (data) => {
     const payload = data;
