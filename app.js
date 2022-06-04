@@ -47,6 +47,7 @@ app.use(express.static("views"));
 app.use(mongoSanitize()); // Checks the request headers, query strings, params for malicious codes
 
 // Import all routes
+const { authRouter } = require("./routes/auth/index");
 
 //default Route
 app.get("/", (req, res) => {
@@ -58,12 +59,8 @@ app.get("/api/v1/home", (req, res) => {
   res.json({ message: `Welcome to Fixers API v1` });
 });
 
-app.post("/api/v1/withdrawal", (req, res) => {
-  res.status(200).send("OK");
-});
-
 //   Routes Middleware
-// app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/auth", authRouter);
 // app.use("/api/v1/user", userRouter);
 
 // Unhandled Routes
