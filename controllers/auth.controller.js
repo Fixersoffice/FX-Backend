@@ -202,3 +202,188 @@ exports.resendEmailVerification = catchAsync(async (req, res, next) => {
 
   return successResMsg(res, 200, dataInfo);
 });
+
+exports.protect = catchAsync(async (req, res, next) => {
+  let token, currentUser;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  } else if (req.cookies) {
+    token = req.cookies.jwt;
+  } else {
+    return next(new AppError("Invalid authentication token", 401));
+  }
+
+  // token verification
+  const decoded = await verifyAccessToken(token);
+
+  // check if user still exist
+  currentUser = await User.findById(decoded.id);
+
+  if (!currentUser) {
+    return next(new AppError("User no longer exist", 401));
+  }
+
+  // check if user change password after the token was issued.
+  if (currentUser.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError("User recently change password, please login again", 401)
+    );
+  }
+
+  // grant access to user route
+  req.user = currentUser;
+  res.local.user = currentUser;
+
+  next();
+});
+
+// forget password
+exports.forgetPassword = catchAsync(async (req, res, next) => {
+  // Get user based on email provieded
+  const user = await User.findOne({ email: req.body.email });
+
+  // check if user exists
+  if (!user) {
+    return next(
+      new AppError(
+        "The user with the provided email address does not exist",
+        401
+      )
+    );
+  }
+
+  // generate random token
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    // sent token to the user email provided.
+    const resetUrl = `${URL}/auth/reset/resetPassword/?confirmationToken=${resetToken}`;
+
+    ejs.renderFile(
+      path.join(__dirname, "../views/email-template.ejs"),
+      {
+        salutation: `Hello ${user.firstName}`,
+        body: `<p>We received a request to reset your password for your account. We're here to help! \n </p>
+        <p>Simply click on the link below to set a new password: \n <p> 
+        <strong><a href=${resetUrl}>Change my password</a></strong> \n
+        <p>If you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email.\n <p> 
+        <p>If you don’t use this link within 1 hour, it will expire. \n <p>`,
+      },
+      async (err, data) => {
+        //use the data here as the mail body
+        const options = {
+          email: req.body.email,
+          subject: "Password Reset!",
+          message: data,
+        };
+        await sendEmail(options);
+      }
+    );
+
+    const dataInfo = { message: "Password reset token sent!" };
+    return successResMsg(res, 200, dataInfo);
+  } catch (error) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.save({ validateBeforeSave: false });
+
+    return next(new AppError("There was an error sending the email", 500));
+  }
+});
+
+// reset Password
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const { resettoken: confirmationToken } = req.params;
+
+  // get user based on the token
+  const hashedToken = await crypto
+    .createHash("sha256")
+    .update(confirmationToken, "utf-8")
+    .digest("hex");
+
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  // check if token is still valid / not Expired
+  if (!user) {
+    return next(new AppError("Invalid or expired token", 400));
+  }
+
+  user.password = req.body.password;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  await user.save(); // No need to turn off validator as it's required
+
+  // Update passwordChangedAt property in userModel
+
+  const loginUrl = `${URL}/login`;
+
+  // send mail notification
+
+  ejs.renderFile(
+    path.join(__dirname, "../views/email-template.ejs"),
+    {
+      salutation: `Hello ${user.firstName}`,
+      body: `<p> PASSWORD CHANGE NOTIFICATION \n </p>
+      <p>We are pleased to inform you that based on your recent request, your password has been changed successfully. \n <p> 
+      <p>Click the link below to log in with your new password:\n <p> 
+      <strong><a href=${loginUrl}>Login to your account</a></strong> \n`,
+    },
+    async (err, data) => {
+      //use the data here as the mail body
+      const options = {
+        email: user.email,
+        subject: "Password Reset Successfull!",
+        message: data,
+      };
+      await sendEmail(options);
+    }
+  );
+
+  // Log in user -- send JWT
+  createSendToken(user, 200, res);
+});
+
+// Updating password of a logged in user
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  // Get user from collection
+  const user = await User.findById(req.user.id).select("+password");
+
+  // Check if posted password is correct
+  if (!(await user.correctPassword(req.body.currentPassword, user.password))) {
+    return next(new AppError("Password Incorrect. Try again!!", 401));
+  }
+
+  // Update Password
+  user.password = req.body.newPassword;
+  await user.save();
+
+  // send a mail
+  ejs.renderFile(
+    path.join(__dirname, "../views/email-template.ejs"),
+    {
+      salutation: `Hello ${user.firstName}`,
+      body: `<p> You've successfully changed your password \n </p>
+      <p>If you didnt perfom this action, contact support immediately  \n <p> `,
+    },
+    async (err, data) => {
+      //use the data here as the mail body
+      const options = {
+        email: user.email,
+        subject: "Password Changed!",
+        message: data,
+      };
+      await sendEmail(options);
+    }
+  );
+
+  // Log user in -- send JWT
+  createSendToken(user, 200, res);
+});
