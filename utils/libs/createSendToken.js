@@ -11,10 +11,13 @@ const createSendToken = async (user, statusCode, res) => {
     expires: new Date(
       Date.now() + FIXERS_ACCESS_TOKEN_SECRET_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
+    secure: false,
     httpOnly: true,
   };
 
   if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
+
+  user.password = undefined;
 
   res.cookie("jwt", token, cookieOptions);
 

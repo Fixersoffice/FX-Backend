@@ -1,10 +1,8 @@
 const Joi = require("joi");
 
 const userSignUpSchema = Joi.object({
-  firstName: Joi.string().required(),
-  lastName: Joi.string().required(),
+  userName: Joi.string().required(),
   email: Joi.string().email().required(),
-  country: Joi.string().required(),
   phoneNumber: Joi.string()
     .regex(/^[+][0-9]{11}/)
     .min(12)
@@ -27,7 +25,8 @@ const updatePasswordSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().required(),
+  username: Joi.string().optional(),
+  phoneNumber: Joi.string().optional(),
   password: Joi.string().min(8).max(20).required(),
 });
 

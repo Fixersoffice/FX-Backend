@@ -6,15 +6,10 @@ const validator = require("validator");
 
 const userSchema = new Schema(
   {
-    firstName: {
+    userName: {
       type: String,
       lowercase: true,
-      required: [true, "Please enter your First Name!"],
-    },
-    lastName: {
-      type: String,
-      lowercase: true,
-      required: [true, "Please enter your Last Name!"],
+      required: [true, "Please enter your User Name!"],
     },
     email: {
       type: String,
@@ -22,9 +17,10 @@ const userSchema = new Schema(
       lowercase: true,
       required: [true, "Please enter your email address!"],
     },
-    country: {
+    userType: {
       type: String,
-      required: [true, "Please add a country"],
+      enum: ["Artisan", "Professional"],
+      default: "Artisan",
     },
     phoneNumber: {
       type: String,
