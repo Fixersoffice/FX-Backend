@@ -25,11 +25,39 @@ exports.logout = catchAsync(async (req, res, next) => {
 
 exports.login = catchAsync(async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return next(new AppError("Please provide email and password", 400));
+    const { password } = req.body;
+
+    let user;
+
+    user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return next(new AppError("No user found with this email", 404));
     }
-    const user = await User.findOne({ email }).select("+password");
+
+    // check if user signup with phoneNumber
+    if (req.body.phoneNumber) {
+      userName = await User.exists({ phoneNumber: req.body.phoneNumber });
+
+      if (!user) return next(new AppError("Phone Number does not exist", 400));
+    }
+
+    // const { email, phoneNumber, password } = req.body;
+    // if (!(email || phoneNumber) || !password) {
+    //   return next(
+    //     new AppError(
+    //       "Please provide email or phoneNumber with your password",
+    //       400
+    //     )
+    //   );
+    // }
+    // let user;
+    // if (email) {
+    //   user = await User.findOne({ email }).select("+password");
+    // }else {
+    //   user = await User.exists({ phoneNumber: phoneNumber })
+    // }
+
     if (!user || !(await user.correctPassword(password, user.password))) {
       return next(new AppError("Incorrect email or password", 401));
     }
@@ -41,20 +69,12 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.createUser = catchAsync(async (req, res, next) => {
   try {
-    const { firstName, lastName, email, country, phoneNumber, password } =
-      req.body;
+    const { userName, email, phoneNumber, password, userType } = req.body;
 
-    if (
-      !firstName ||
-      !lastName ||
-      !email ||
-      !phoneNumber ||
-      !country ||
-      !password
-    ) {
+    if (!userName || !email || !phoneNumber || !password) {
       return next(
         new AppError(
-          "Please provide first name, last name, email, country, phone number and password!",
+          "Please provide username, email, phone number and password!",
           400
         )
       );
@@ -62,48 +82,54 @@ exports.createUser = catchAsync(async (req, res, next) => {
 
     const user = await User.findOne({ email }).select("+password");
 
+    const phoneNumberCheck = await User.exists({
+      phoneNumber: req.body.phoneNumber,
+    });
+
     if (user) {
       return next(new AppError("Email already exists!", 400));
     }
 
+    if (phoneNumberCheck) {
+      return next(new AppError("Phone Number already exists!", 400));
+    }
+
     const newUser = await User.create({
-      firstName,
-      lastName,
+      userName,
       email,
-      country,
       phoneNumber,
       password,
       userType,
     });
 
-    const data = {
-      email: req.body.email,
-    };
+    // const data = {
+    //   email: req.body.email,
+    // };
 
-    const token = signAccessToken(data);
-    const verificationUrl = `${URL}/auth/email/verify/?verification_token=${token}`;
+    // const token = signAccessToken(data);
+    // const verificationUrl = `${URL}/auth/email/verify/?verification_token=${token}`;
 
-    ejs.renderFile(
-      path.join(__dirname, "../views/email-template.ejs"),
-      {
-        salutation: `Hi ${req.body.firstName}`,
-        body: `Thank you for signing up on Payercoins<br><br>
-      
-                  Kindly <a href="${verificationUrl}">click here</a> to verify your email.
-                  <br><br>
-                  Need help? ask at <a href="mailto:hello@payercoins.com">hello@payercoins.com</a>
-                  `,
-      },
-      async (err, data) => {
-        //use the data here as the mail body
-        const options = {
-          email: req.body.email,
-          subject: "Verify Your Email",
-          message: data,
-        };
-        await sendEmail(options);
-      }
-    );
+    // ejs.renderFile(
+    //   path.join(__dirname, "../views/email-template.ejs"),
+    //   {
+    //     salutation: `Hi ${req.body.firstName}`,
+    //     body: `Thank you for signing up on Fixers<br><br>
+
+    //               Kindly <a href="${verificationUrl}">click here</a> to verify your email.
+    //               <br><br>
+    //               Need help? ask at <a href="mailto:hello@fixers.com">hello@fixers.com</a>
+    //               `,
+    //   },
+    //   async (err, data) => {
+    //     //use the data here as the mail body
+    //     const options = {
+    //       email: req.body.email,
+    //       subject: "Verify Your Email",
+    //       message: data,
+    //     };
+    //     await sendEmail(options);
+    //   }
+    // );
 
     const dataInfo = {
       message:
@@ -178,11 +204,11 @@ exports.resendEmailVerification = catchAsync(async (req, res, next) => {
     path.join(__dirname, "../views/email-template.ejs"),
     {
       salutation: `Hi ${req.body.firstName}`,
-      body: `Thank you for signing up on Payercoins<br><br>
+      body: `Thank you for signing up on Fixers<br><br>
     
                 Kindly <a href="${verificationUrl}">click here</a> to verify your email.
                 <br><br>
-                Need help? ask at <a href="mailto:hello@payercoins.com">hello@payercoins.com</a>
+                Need help? ask at <a href="mailto:hello@fixers.com">hello@fixers.com</a>
                 `,
     },
     async (err, data) => {
@@ -271,7 +297,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
         <p>Simply click on the link below to set a new password: \n <p> 
         <strong><a href=${resetUrl}>Change my password</a></strong> \n
         <p>If you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email.\n <p> 
-        <p>If you don’t use this link within 1 hour, it will expire. \n <p>`,
+        <p>If you dont use this link within 1 hour, it will expire. \n <p>`,
       },
       async (err, data) => {
         //use the data here as the mail body
