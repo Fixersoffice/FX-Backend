@@ -1,6 +1,5 @@
 const ejs = require("ejs");
 const User = require("../models/user.model");
-const { createSendToken } = require("../utils/libs/createSendToken");
 const { signAccessToken } = require("../utils/libs/jwt-helper");
 const { successResMsg, errorResMsg } = require("../utils/libs/response");
 const AppError = require("../utils/libs/appError");
@@ -11,6 +10,32 @@ const URL =
   process.env.NODE_ENV === "development"
     ? process.env.FIXERS_FRONT_END_DEV_URL
     : process.env.FIXERSS_FRONT_END_LIVE_URL;
+
+const { FIXERS_ACCESS_TOKEN_SECRET_EXPIRES_IN } = process.env;
+
+const createSendToken = (user, statusCode, res) => {
+  const token = signAccessToken({
+    id: user._id,
+    email: user.email,
+  });
+
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + FIXERS_ACCESS_TOKEN_SECRET_EXPIRES_IN * 24 * 60 * 60 * 1000
+    ),
+    secure: false,
+    httpOnly: true,
+  };
+
+  if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
+
+  user.password = undefined;
+
+  // res.cookie("jwt", token, cookieOptions);
+
+  const dataInfo = { token, user };
+  return successResMsg(res, 200, dataInfo);
+};
 
 exports.logout = catchAsync(async (req, res, next) => {
   res.cookie("jwt", "loggedout", {
@@ -25,45 +50,56 @@ exports.logout = catchAsync(async (req, res, next) => {
 
 exports.login = catchAsync(async (req, res, next) => {
   try {
-    const { password } = req.body;
-
     let user;
+    const { username, phoneNumber, password } = req.body;
 
-    user = await User.findOne({ email: req.body.email });
+    if (username) {
+      user = await User.findOne({ username: username }).select(
+        "+password +isVerified +block"
+      );
+      if (!user) {
+        return next(new AppError("User not found", 404));
+      }
 
-    if (!user) {
-      return next(new AppError("No user found with this email", 404));
-    }
+      if (!user || !(await user.correctPassword(password, user.password))) {
+        return next(new AppError("Incorrect username or password", 401));
+      }
 
-    // check if user signup with phoneNumber
-    if (req.body.phoneNumber) {
-      userName = await User.exists({ phoneNumber: req.body.phoneNumber });
+      if (!user.isVerified) {
+        return next(new AppError("Please verify your email address", 401));
+      }
 
-      if (!user) return next(new AppError("Phone Number does not exist", 400));
-    }
-
-    // const { email, phoneNumber, password } = req.body;
-    // if (!(email || phoneNumber) || !password) {
-    //   return next(
-    //     new AppError(
-    //       "Please provide email or phoneNumber with your password",
-    //       400
-    //     )
+      if (user.block) {
+        return next(new AppError("Your account has been blocked", 401));
+      }
+      console.log(`it's working...`);
+      createSendToken(user, 200, res);
+    } // else if (phoneNumber) {
+    //   user = await User.exists({ phoneNumber: phoneNumber }).select(
+    //     "+password"
     //   );
-    // }
-    // let user;
-    // if (email) {
-    //   user = await User.findOne({ email }).select("+password");
-    // }else {
-    //   user = await User.exists({ phoneNumber: phoneNumber })
-    // }
+    //   if (!user) {
+    //     return next(new AppError("PhoneNumber does not exist", 401));
+    //   }
 
-    if (!user || !(await user.correctPassword(password, user.password))) {
-      return next(new AppError("Incorrect email or password", 401));
-    }
-    createSendToken(user, 200, res);
+    //   if (!user || !(await user.correctPassword(password, user.password))) {
+    //     return next(new AppError("Incorrect email or password", 401));
+    //   }
+
+    //   if (!user.isVerified) {
+    //     return next(new AppError("Please verify your email address", 401));
+    //   }
+
+    //   if (user.block) {
+    //     return next(new AppError("Your account has been blocked", 401));
+    //   }
+
+    //   console.log(`it's working...`);
+    //   // createSendToken(user, 200, res);
+    // }
   } catch (error) {
-    return next(new AppError(error.message, 500));
+    console.log(error);
+    return next(new AppError(error, error.status));
   }
 });
 
