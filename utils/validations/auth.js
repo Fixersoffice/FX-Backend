@@ -1,10 +1,8 @@
 const Joi = require("joi");
 
 const userSignUpSchema = Joi.object({
-  firstName: Joi.string().required(),
-  lastName: Joi.string().required(),
+  userName: Joi.string().required(),
   email: Joi.string().email().required(),
-  country: Joi.string().required(),
   phoneNumber: Joi.string()
     .regex(/^[+][0-9]{11}/)
     .min(12)
