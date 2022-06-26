@@ -4,7 +4,7 @@ const { Schema, model } = mongoose;
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
 
-const userSchema = new Schema(
+const homeOwnersSchema = new Schema(
   {
     userName: {
       type: String,
@@ -22,21 +22,6 @@ const userSchema = new Schema(
       unique: true,
       required: [true, "Please enter your phone Number!"],
     },
-    address: {
-      type: String,
-      required: true,
-    },
-    password: {
-      type: String,
-      required: [true, "Please provide a password."],
-      minlength: 8,
-      select: false,
-    },
-    userType: {
-      type: String,
-      enum: ["Fixers", "Home Owners"],
-      default: "Artisan",
-    },
     isVerified: {
       type: Boolean,
       default: false,
@@ -53,9 +38,11 @@ const userSchema = new Schema(
       default:
         "https://res.cloudinary.com/oluwatobiloba/image/upload/v1628753027/Grazac/avatar_cihz37.png",
     },
-    isFixers: {
-      type: Boolean,
-      default: false,
+    password: {
+      type: String,
+      required: [true, "Please provide a password."],
+      minlength: 8,
+      select: false,
     },
     passwordChangedAt: {
       type: Date,
@@ -78,7 +65,7 @@ const userSchema = new Schema(
   }
 );
 
-userSchema.pre("save", async function (next) {
+HomeOwner.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
   // generate a salt
@@ -90,33 +77,30 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-userSchema.pre("save", function (next) {
+HomeOwner.pre("save", function (next) {
   if (!this.isModified("password") || this.isNew) return next();
 
   this.passwordChangedAt = Date.now() - 1000;
   next();
 });
 
-userSchema.methods.correctPassword = function (
-  candidatePassword,
-  userPassword
-) {
+HomeOwner.methods.correctPassword = function (candidatePassword, userPassword) {
   return bcrypt.compare(candidatePassword, userPassword);
 };
 
-userSchema.pre(/^find/, function (next) {
+HomeOwner.pre(/^find/, function (next) {
   this.find({ active: { $ne: false } });
   next();
 });
 
 // Cascade delete subjects when a user is deleted
-userSchema.pre("remove", async function (next) {
+HomeOwner.pre("remove", async function (next) {
   //console.log(`Business being removed from user ${this._id}-${this.businessName}`);
   await this.model("user").deleteMany({ _id: this._id });
   next();
 });
 
-userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+HomeOwner.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
@@ -128,7 +112,7 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   return false;
 };
 
-userSchema.methods.createPasswordResetToken = function () {
+HomeOwner.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
   this.passwordResetToken = crypto
     .createHash("sha256")
@@ -140,6 +124,6 @@ userSchema.methods.createPasswordResetToken = function () {
   return resetToken;
 };
 
-const User = model("User", userSchema);
+const HomeOwner = model("HomeOwner", homeOwnersSchema);
 
-module.exports = User;
+module.exports = HomeOwner;
