@@ -52,7 +52,7 @@ exports.logout = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   try {
     let user;
-    const { userNameOrPhoneNumber, password } = req.body;
+    const { userNameOrEmail, password } = req.body;
 
     if (userNameOrPhoneNumber.startsWith("+")) {
       user = await User.exists({ phoneNumber: userNameOrPhoneNumber }).select([
@@ -102,45 +102,87 @@ exports.createUser = catchAsync(async (req, res, next) => {
   const session = mongoose.startSession();
   session.startTransaction();
   try {
-    const { userName, email, phoneNumber, address, password } = req.body;
-
-    if (!userName || !email || !phoneNumber || !address || !password) {
-      return next(
-        new AppError(
-          "Please provide username, email, phone number and password!",
-          400
-        )
-      );
-    }
-
-    const user = await User.findOne({ email }).select("+password");
-
-    const phoneNumberCheck = await User.exists({
-      phoneNumber: req.body.phoneNumber,
-    });
-
-    if (user) {
-      return next(new AppError("Email already exists!", 400));
-    }
-
-    if (phoneNumberCheck) {
-      return next(new AppError("Phone Number already exists!", 400));
-    }
-
     let userType = req.body.userType;
 
-    if (userType === "Home Owner") {
+    if (!userType) {
+      return next(new AppError("please provide user type!", 400));
     }
 
-    const newUser = await User.create({
-      userName,
-      email,
-      phoneNumber,
-      address,
-      password,
-      userType,
-    });
+    const userTypeArray = ["Home Owners", "Fixers"];
 
+    if (!userTypeArray.includes(userType)) {
+      return next(new AppError("user type is not valid!", 400));
+    }
+
+    if (userType === "Home Owners") {
+      const { userName, email, phoneNumber, address, password } = req.body;
+
+      if (!userName || !email || !phoneNumber || !address || !password) {
+        return next(
+          new AppError(
+            "Please provide username, email, phone number and password!",
+            400
+          )
+        );
+      }
+
+      const user = await User.findOne({ email }).select("+password");
+
+      const phoneNumberCheck = await User.exists({
+        phoneNumber: req.body.phoneNumber,
+      });
+
+      if (user) {
+        return next(new AppError("Email already exists!", 400));
+      }
+
+      if (phoneNumberCheck) {
+        return next(new AppError("Phone Number already exists!", 400));
+      }
+
+      const newUser = await User.create({
+        userName,
+        email,
+        phoneNumber,
+        address,
+        password,
+        userType,
+      });
+    } else if (userType === "Fixers") {
+      const { userName, email, phoneNumber, address, password } = req.body;
+
+      if (!userName || !email || !phoneNumber || !address || !password) {
+        return next(
+          new AppError(
+            "Please provide username, email, phone number and password!",
+            400
+          )
+        );
+      }
+
+      const user = await User.findOne({ email }).select("+password");
+
+      const phoneNumberCheck = await User.exists({
+        phoneNumber: req.body.phoneNumber,
+      });
+
+      if (user) {
+        return next(new AppError("Email already exists!", 400));
+      }
+
+      if (phoneNumberCheck) {
+        return next(new AppError("Phone Number already exists!", 400));
+      }
+
+      const newUser = await User.create({
+        userName,
+        email,
+        phoneNumber,
+        address,
+        password,
+        userType,
+      });
+    }
     // const data = {
     //   email: req.body.email,
     // };
