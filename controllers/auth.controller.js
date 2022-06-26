@@ -54,15 +54,17 @@ exports.login = catchAsync(async (req, res, next) => {
     let user;
     const { userNameOrEmail, password } = req.body;
 
-    if (userNameOrPhoneNumber.startsWith("+")) {
-      user = await User.exists({ phoneNumber: userNameOrPhoneNumber }).select([
+    if (userNameOrEmail.includes("@")) {
+      user = await User.findOne({ email: userNameOrEmail }).select([
         "+password",
+        "+isVerified",
+        "+block",
       ]);
-      console.log("phoneNumber", user);
+      // console.log("user", user);
       if (!user) {
         return next(new AppError("PhoneNumber does not exist", 401));
       }
-      if (!user || !(await User.correctPassword(password, user.password))) {
+      if (!user || !(await user.correctPassword(password, user.password))) {
         return next(new AppError("Incorrect email or password", 401));
       }
       if (!user.isVerified) {
@@ -74,23 +76,26 @@ exports.login = catchAsync(async (req, res, next) => {
       console.log(`it's working...`);
       createSendToken(user, 200, res);
     } else {
-      // user = await User.findOne({ username: username }).select(
-      //   "+password +isVerified +block"
-      // );
-      // if (!user) {
-      //   return next(new AppError("User not found", 404));
-      // }
-      // if (!user || !(await user.correctPassword(password, user.password))) {
-      //   return next(new AppError("Incorrect username or password", 401));
-      // }
-      // if (!user.isVerified) {
-      //   return next(new AppError("Please verify your email address", 401));
-      // }
-      // if (user.block) {
-      //   return next(new AppError("Your account has been blocked", 401));
-      // }
+      user = await User.findOne({ username: userNameOrEmail }).select([
+        "+password",
+        "+isVerified",
+        "+block",
+      ]);
+      console.log(user);
+      if (!user) {
+        return next(new AppError("User not found", 404));
+      }
+      if (!user || !(await user.correctPassword(password, user.password))) {
+        return next(new AppError("Incorrect username or password", 401));
+      }
+      if (!user.isVerified) {
+        return next(new AppError("Please verify your email address", 401));
+      }
+      if (user.block) {
+        return next(new AppError("Your account has been blocked", 401));
+      }
       // console.log(`it's working...`);
-      // createSendToken(user, 200, res);
+      createSendToken(user, 200, res);
     }
   } catch (error) {
     console.log(error);
@@ -217,8 +222,13 @@ exports.createUser = catchAsync(async (req, res, next) => {
         "Hello, your account has been successfully registered. To complete the verification process, please check your email to verify your account.!",
     };
 
+    await session.commitTransaction(); // comit Transaction
+    session.endSession(); // end the Session
+
     return successResMsg(res, 200, dataInfo);
   } catch (error) {
+    await session.abortTransaction(); // abort transaction which is a rollback
+    session.endSession(); // end the session
     return next(new AppError(error, error.status));
   }
 });
