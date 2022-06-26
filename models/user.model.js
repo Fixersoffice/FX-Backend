@@ -34,8 +34,6 @@ const userSchema = new Schema(
     },
     userType: {
       type: String,
-      enum: ["Fixers", "Home Owners"],
-      default: "Artisan",
     },
     isVerified: {
       type: Boolean,
