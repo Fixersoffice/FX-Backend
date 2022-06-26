@@ -52,17 +52,19 @@ exports.logout = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   try {
     let user;
-    const { userNameOrPhoneNumber, password } = req.body;
+    const { userNameOrEmail, password } = req.body;
 
-    if (userNameOrPhoneNumber.startsWith("+")) {
-      user = await User.exists({ phoneNumber: userNameOrPhoneNumber }).select([
+    if (userNameOrEmail.includes("@")) {
+      user = await User.findOne({ email: userNameOrEmail }).select([
         "+password",
+        "+isVerified",
+        "+block",
       ]);
-      console.log("phoneNumber", user);
+      // console.log("user", user);
       if (!user) {
         return next(new AppError("PhoneNumber does not exist", 401));
       }
-      if (!user || !(await User.correctPassword(password, user.password))) {
+      if (!user || !(await user.correctPassword(password, user.password))) {
         return next(new AppError("Incorrect email or password", 401));
       }
       if (!user.isVerified) {
@@ -74,23 +76,26 @@ exports.login = catchAsync(async (req, res, next) => {
       console.log(`it's working...`);
       createSendToken(user, 200, res);
     } else {
-      // user = await User.findOne({ username: username }).select(
-      //   "+password +isVerified +block"
-      // );
-      // if (!user) {
-      //   return next(new AppError("User not found", 404));
-      // }
-      // if (!user || !(await user.correctPassword(password, user.password))) {
-      //   return next(new AppError("Incorrect username or password", 401));
-      // }
-      // if (!user.isVerified) {
-      //   return next(new AppError("Please verify your email address", 401));
-      // }
-      // if (user.block) {
-      //   return next(new AppError("Your account has been blocked", 401));
-      // }
+      user = await User.findOne({ username: userNameOrEmail }).select([
+        "+password",
+        "+isVerified",
+        "+block",
+      ]);
+      console.log(user);
+      if (!user) {
+        return next(new AppError("User not found", 404));
+      }
+      if (!user || !(await user.correctPassword(password, user.password))) {
+        return next(new AppError("Incorrect username or password", 401));
+      }
+      if (!user.isVerified) {
+        return next(new AppError("Please verify your email address", 401));
+      }
+      if (user.block) {
+        return next(new AppError("Your account has been blocked", 401));
+      }
       // console.log(`it's working...`);
-      // createSendToken(user, 200, res);
+      createSendToken(user, 200, res);
     }
   } catch (error) {
     console.log(error);
@@ -102,45 +107,87 @@ exports.createUser = catchAsync(async (req, res, next) => {
   const session = mongoose.startSession();
   session.startTransaction();
   try {
-    const { userName, email, phoneNumber, address, password } = req.body;
-
-    if (!userName || !email || !phoneNumber || !address || !password) {
-      return next(
-        new AppError(
-          "Please provide username, email, phone number and password!",
-          400
-        )
-      );
-    }
-
-    const user = await User.findOne({ email }).select("+password");
-
-    const phoneNumberCheck = await User.exists({
-      phoneNumber: req.body.phoneNumber,
-    });
-
-    if (user) {
-      return next(new AppError("Email already exists!", 400));
-    }
-
-    if (phoneNumberCheck) {
-      return next(new AppError("Phone Number already exists!", 400));
-    }
-
     let userType = req.body.userType;
 
-    if (userType === "Home Owner") {
+    if (!userType) {
+      return next(new AppError("please provide user type!", 400));
     }
 
-    const newUser = await User.create({
-      userName,
-      email,
-      phoneNumber,
-      address,
-      password,
-      userType,
-    });
+    const userTypeArray = ["Home Owners", "Fixers"];
 
+    if (!userTypeArray.includes(userType)) {
+      return next(new AppError("user type is not valid!", 400));
+    }
+
+    if (userType === "Home Owners") {
+      const { userName, email, phoneNumber, address, password } = req.body;
+
+      if (!userName || !email || !phoneNumber || !address || !password) {
+        return next(
+          new AppError(
+            "Please provide username, email, phone number and password!",
+            400
+          )
+        );
+      }
+
+      const user = await User.findOne({ email }).select("+password");
+
+      const phoneNumberCheck = await User.exists({
+        phoneNumber: req.body.phoneNumber,
+      });
+
+      if (user) {
+        return next(new AppError("Email already exists!", 400));
+      }
+
+      if (phoneNumberCheck) {
+        return next(new AppError("Phone Number already exists!", 400));
+      }
+
+      const newUser = await User.create({
+        userName,
+        email,
+        phoneNumber,
+        address,
+        password,
+        userType,
+      });
+    } else if (userType === "Fixers") {
+      const { userName, email, phoneNumber, address, password } = req.body;
+
+      if (!userName || !email || !phoneNumber || !address || !password) {
+        return next(
+          new AppError(
+            "Please provide username, email, phone number and password!",
+            400
+          )
+        );
+      }
+
+      const user = await User.findOne({ email }).select("+password");
+
+      const phoneNumberCheck = await User.exists({
+        phoneNumber: req.body.phoneNumber,
+      });
+
+      if (user) {
+        return next(new AppError("Email already exists!", 400));
+      }
+
+      if (phoneNumberCheck) {
+        return next(new AppError("Phone Number already exists!", 400));
+      }
+
+      const newUser = await User.create({
+        userName,
+        email,
+        phoneNumber,
+        address,
+        password,
+        userType,
+      });
+    }
     // const data = {
     //   email: req.body.email,
     // };
@@ -175,8 +222,13 @@ exports.createUser = catchAsync(async (req, res, next) => {
         "Hello, your account has been successfully registered. To complete the verification process, please check your email to verify your account.!",
     };
 
+    await session.commitTransaction(); // comit Transaction
+    session.endSession(); // end the Session
+
     return successResMsg(res, 200, dataInfo);
   } catch (error) {
+    await session.abortTransaction(); // abort transaction which is a rollback
+    session.endSession(); // end the session
     return next(new AppError(error, error.status));
   }
 });
