@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const ejs = require("ejs");
 const User = require("../models/user.model");
 const { signAccessToken } = require("../utils/libs/jwt-helper");
@@ -51,52 +52,46 @@ exports.logout = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   try {
     let user;
-    const { username, phoneNumber, password } = req.body;
+    const { userNameOrPhoneNumber, password } = req.body;
 
-    if (username) {
-      user = await User.findOne({ username: username }).select(
-        "+password +isVerified +block"
-      );
+    if (userNameOrPhoneNumber.startsWith("+")) {
+      user = await User.exists({ phoneNumber: userNameOrPhoneNumber }).select([
+        "+password",
+      ]);
+      console.log("phoneNumber", user);
       if (!user) {
-        return next(new AppError("User not found", 404));
+        return next(new AppError("PhoneNumber does not exist", 401));
       }
-
-      if (!user || !(await user.correctPassword(password, user.password))) {
-        return next(new AppError("Incorrect username or password", 401));
+      if (!user || !(await User.correctPassword(password, user.password))) {
+        return next(new AppError("Incorrect email or password", 401));
       }
-
       if (!user.isVerified) {
         return next(new AppError("Please verify your email address", 401));
       }
-
       if (user.block) {
         return next(new AppError("Your account has been blocked", 401));
       }
       console.log(`it's working...`);
       createSendToken(user, 200, res);
-    } // else if (phoneNumber) {
-    //   user = await User.exists({ phoneNumber: phoneNumber }).select(
-    //     "+password"
-    //   );
-    //   if (!user) {
-    //     return next(new AppError("PhoneNumber does not exist", 401));
-    //   }
-
-    //   if (!user || !(await user.correctPassword(password, user.password))) {
-    //     return next(new AppError("Incorrect email or password", 401));
-    //   }
-
-    //   if (!user.isVerified) {
-    //     return next(new AppError("Please verify your email address", 401));
-    //   }
-
-    //   if (user.block) {
-    //     return next(new AppError("Your account has been blocked", 401));
-    //   }
-
-    //   console.log(`it's working...`);
-    //   // createSendToken(user, 200, res);
-    // }
+    } else {
+      // user = await User.findOne({ username: username }).select(
+      //   "+password +isVerified +block"
+      // );
+      // if (!user) {
+      //   return next(new AppError("User not found", 404));
+      // }
+      // if (!user || !(await user.correctPassword(password, user.password))) {
+      //   return next(new AppError("Incorrect username or password", 401));
+      // }
+      // if (!user.isVerified) {
+      //   return next(new AppError("Please verify your email address", 401));
+      // }
+      // if (user.block) {
+      //   return next(new AppError("Your account has been blocked", 401));
+      // }
+      // console.log(`it's working...`);
+      // createSendToken(user, 200, res);
+    }
   } catch (error) {
     console.log(error);
     return next(new AppError(error, error.status));
@@ -104,10 +99,12 @@ exports.login = catchAsync(async (req, res, next) => {
 });
 
 exports.createUser = catchAsync(async (req, res, next) => {
+  const session = mongoose.startSession();
+  session.startTransaction();
   try {
-    const { userName, email, phoneNumber, password, userType } = req.body;
+    const { userName, email, phoneNumber, address, password } = req.body;
 
-    if (!userName || !email || !phoneNumber || !password) {
+    if (!userName || !email || !phoneNumber || !address || !password) {
       return next(
         new AppError(
           "Please provide username, email, phone number and password!",
@@ -130,10 +127,16 @@ exports.createUser = catchAsync(async (req, res, next) => {
       return next(new AppError("Phone Number already exists!", 400));
     }
 
+    let userType = req.body.userType;
+
+    if (userType === "Home Owner") {
+    }
+
     const newUser = await User.create({
       userName,
       email,
       phoneNumber,
+      address,
       password,
       userType,
     });
