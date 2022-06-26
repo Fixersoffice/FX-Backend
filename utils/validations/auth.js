@@ -25,7 +25,7 @@ const updatePasswordSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  userNameOrPhoneNumber: Joi.string().required(),
+  userNameOrEmail: Joi.string().required(),
   password: Joi.string().min(8).max(20).required(),
 });
 
