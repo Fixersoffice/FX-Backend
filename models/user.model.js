@@ -51,6 +51,10 @@ const userSchema = new Schema(
       default:
         "https://res.cloudinary.com/oluwatobiloba/image/upload/v1628753027/Grazac/avatar_cihz37.png",
     },
+    rating: {
+      type: Number,
+      default: 0,
+    },
     isFixers: {
       type: Boolean,
       default: false,
