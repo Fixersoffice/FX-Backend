@@ -1,4 +1,4 @@
-const Profession = require("../professional/profession.model");
+const Profession = require("../../models/professions.models");
 const { successResMsg } = require("../../utils/libs/response");
 const AppError = require("../../utils/libs/appError");
 
@@ -16,7 +16,7 @@ exports.createProfessions = async (req, res, next) => {
 };
 
 // fetch list of professions
-exports.getProfessions = async (req, res, next) => {
+exports.listProfessions = async (req, res, next) => {
   try {
     const professions = await Profession.find();
     return successResMsg(res, "Professions fetched successfully", professions);
