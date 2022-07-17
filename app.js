@@ -48,6 +48,7 @@ app.use(mongoSanitize()); // Checks the request headers, query strings, params f
 
 // Import all routes
 const { authRouter } = require("./routes/auth/index");
+const { professionRouter } = require("./routes/profession/profession.route");
 
 //default Route
 app.get("/", (req, res) => {
@@ -62,6 +63,7 @@ app.get("/api/v1/home", (req, res) => {
 //   Routes Middleware
 app.use("/api/v1/auth", authRouter);
 // app.use("/api/v1/user", userRouter);
+app.use("/api/v1/profession", professionRouter);
 
 // Unhandled Routes
 app.all("*", (req, res) => {
