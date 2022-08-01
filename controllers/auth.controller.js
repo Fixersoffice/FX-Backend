@@ -73,7 +73,6 @@ exports.login = catchAsync(async (req, res, next) => {
       if (user.block) {
         return next(new AppError("Your account has been blocked", 401));
       }
-      console.log(`it's working...`);
       createSendToken(user, 200, res);
     } else {
       user = await User.findOne({ username: userNameOrEmail }).select([
@@ -81,7 +80,6 @@ exports.login = catchAsync(async (req, res, next) => {
         "+isVerified",
         "+block",
       ]);
-      console.log(user);
       if (!user) {
         return next(new AppError("User not found", 404));
       }
@@ -94,7 +92,6 @@ exports.login = catchAsync(async (req, res, next) => {
       if (user.block) {
         return next(new AppError("Your account has been blocked", 401));
       }
-      // console.log(`it's working...`);
       createSendToken(user, 200, res);
     }
   } catch (error) {
@@ -104,22 +101,9 @@ exports.login = catchAsync(async (req, res, next) => {
 });
 
 exports.createUser = catchAsync(async (req, res, next) => {
-  const session = mongoose.startSession();
+  const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    let userType = req.body.userType;
-
-    if (!userType) {
-      return next(new AppError("please provide user type!", 400));
-    }
-
-    const userTypeArray = ["Home Owners", "Fixers"];
-
-    if (!userTypeArray.includes(userType)) {
-      return next(new AppError("user type is not valid!", 400));
-    }
-
-    if (userType === "Home Owners") {
       const { userName, email, phoneNumber, address, password } = req.body;
 
       if (!userName || !email || !phoneNumber || !address || !password) {
@@ -151,71 +135,7 @@ exports.createUser = catchAsync(async (req, res, next) => {
         phoneNumber,
         address,
         password,
-        userType,
       });
-    } else if (userType === "Fixers") {
-      const { userName, email, phoneNumber, address, password } = req.body;
-
-      if (!userName || !email || !phoneNumber || !address || !password) {
-        return next(
-          new AppError(
-            "Please provide username, email, phone number and password!",
-            400
-          )
-        );
-      }
-
-      const user = await User.findOne({ email }).select("+password");
-
-      const phoneNumberCheck = await User.exists({
-        phoneNumber: req.body.phoneNumber,
-      });
-
-      if (user) {
-        return next(new AppError("Email already exists!", 400));
-      }
-
-      if (phoneNumberCheck) {
-        return next(new AppError("Phone Number already exists!", 400));
-      }
-
-      const newUser = await User.create({
-        userName,
-        email,
-        phoneNumber,
-        address,
-        password,
-        userType,
-      });
-    }
-    // const data = {
-    //   email: req.body.email,
-    // };
-
-    // const token = signAccessToken(data);
-    // const verificationUrl = `${URL}/auth/email/verify/?verification_token=${token}`;
-
-    // ejs.renderFile(
-    //   path.join(__dirname, "../views/email-template.ejs"),
-    //   {
-    //     salutation: `Hi ${req.body.firstName}`,
-    //     body: `Thank you for signing up on Fixers<br><br>
-
-    //               Kindly <a href="${verificationUrl}">click here</a> to verify your email.
-    //               <br><br>
-    //               Need help? ask at <a href="mailto:hello@fixers.com">hello@fixers.com</a>
-    //               `,
-    //   },
-    //   async (err, data) => {
-    //     //use the data here as the mail body
-    //     const options = {
-    //       email: req.body.email,
-    //       subject: "Verify Your Email",
-    //       message: data,
-    //     };
-    //     await sendEmail(options);
-    //   }
-    // );
 
     const dataInfo = {
       message:
