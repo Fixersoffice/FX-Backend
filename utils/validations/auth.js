@@ -13,6 +13,7 @@ const userSignUpSchema = Joi.object({
     .min(8)
     .max(20)
     .required(),
+  address: Joi.string().required(),
 });
 
 const resendEmailVerificationSchema = Joi.object({
