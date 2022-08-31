@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
-const professionSchema = new Schema(
+const professionalSchema = new Schema(
   {
     professionType: {
       type: String,
@@ -13,6 +13,6 @@ const professionSchema = new Schema(
   }
 );
 
-const Profession = model("Profession", professionSchema);
+const Professional = model("Profession", professionalSchema);
 
-module.exports = Profession;
+module.exports = Professional;
