@@ -48,7 +48,9 @@ app.use(mongoSanitize()); // Checks the request headers, query strings, params f
 
 // Import all routes
 const { authRouter } = require("./routes/auth/index");
-const { professionRouter } = require("./routes/profession/profession.route");
+const {
+  professionRouter,
+} = require("./routes/professional/professional.route");
 const { artisanRouter } = require("./routes/artisan/artisan.route");
 
 //default Route
