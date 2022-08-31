@@ -13,10 +13,11 @@ process.on("uncaughtException", (err) => {
 
 const app = require("./app");
 
-const DB = process.env.FIXERS_DB.replace(
-  "<password>",
-  process.env.FIXERS_PASSWORD
-);
+// const DB = process.env.FIXERS_DB.replace(
+//   "<password>",
+//   process.env.FIXERS_PASSWORD
+// );
+const DB = process.env.FIXERS_TEMP_DB;
 
 mongoose
   .connect(DB, {
@@ -60,6 +61,7 @@ const port = normalizePort(process.env.PORT || "8888");
 const server = app.listen(port, async () => {
   const address = server.address();
   const bind = typeof address === "string" ? `pipe ${address}` : `port ${port}`;
+  console.clear();
   console.log(`Listening on ${chalk.green(bind)}`);
 });
 
