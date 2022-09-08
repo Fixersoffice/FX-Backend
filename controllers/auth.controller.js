@@ -104,38 +104,38 @@ exports.createUser = catchAsync(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-      const { userName, email, phoneNumber, address, password } = req.body;
+    const { userName, email, phoneNumber, address, password } = req.body;
 
-      if (!userName || !email || !phoneNumber || !address || !password) {
-        return next(
-          new AppError(
-            "Please provide username, email, phone number and password!",
-            400
-          )
-        );
-      }
+    if (!userName || !email || !phoneNumber || !address || !password) {
+      return next(
+        new AppError(
+          "Please provide username, email, phone number and password!",
+          400
+        )
+      );
+    }
 
-      const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email }).select("+password");
 
-      const phoneNumberCheck = await User.exists({
-        phoneNumber: req.body.phoneNumber,
-      });
+    const phoneNumberCheck = await User.exists({
+      phoneNumber: req.body.phoneNumber,
+    });
 
-      if (user) {
-        return next(new AppError("Email already exists!", 400));
-      }
+    if (user) {
+      return next(new AppError("Email already exists!", 400));
+    }
 
-      if (phoneNumberCheck) {
-        return next(new AppError("Phone Number already exists!", 400));
-      }
+    if (phoneNumberCheck) {
+      return next(new AppError("Phone Number already exists!", 400));
+    }
 
-      const newUser = await User.create({
-        userName,
-        email,
-        phoneNumber,
-        address,
-        password,
-      });
+    const newUser = await User.create({
+      userName,
+      email,
+      phoneNumber,
+      address,
+      password,
+    });
 
     const dataInfo = {
       message:

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
-const artisanSchema = new Schema(
+const professionalSchema = new Schema(
   {
     username: {
       type: String,
@@ -38,7 +38,7 @@ const artisanSchema = new Schema(
       type: Number,
       default: 0,
     },
-    isFixers: {
+    isProfessional: {
       type: Boolean,
       default: false,
     },
@@ -57,6 +57,6 @@ const artisanSchema = new Schema(
   }
 );
 
-const Artisan = model("Artisan", artisanSchema);
+const Professional = model("Professional", professionalSchema);
 
-module.exports = Artisan;
+module.exports = Professional;

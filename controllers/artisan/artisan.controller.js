@@ -1,6 +1,12 @@
 const Artisan = require("../../models/artisan.model");
+const Professionals = require("../../models/professionals.models");
 const { successResMsg } = require("../../utils/libs/response");
 const AppError = require("../../utils/libs/appError");
+const mongoose = require("mongoose");
+const ejs = require("ejs");
+const { signAccessToken } = require("../../utils/libs/jwt-helper");
+const catchAsync = require("../../utils/libs/catchAsync");
+const sendEMail = require("../../utils/libs/email");
 
 exports.createArtisan = async (req, res, next) => {
   const { artisanType } = req.body;

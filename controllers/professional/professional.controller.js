@@ -1,4 +1,4 @@
-const Profession = require("../../models/professions.models");
+const Profession = require("../../models/professionals.models");
 const { successResMsg } = require("../../utils/libs/response");
 const AppError = require("../../utils/libs/appError");
 
