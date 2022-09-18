@@ -280,13 +280,13 @@ exports.protect = catchAsync(async (req, res, next) => {
 // forget password
 exports.forgetPassword = catchAsync(async (req, res, next) => {
   // Get user based on email provieded
-  const user = await User.findOne({ email: req.body.email });
+  const user = await User.findOne({phoneNumber : req.body.phoneNumber });
 
   // check if user exists
   if (!user) {
     return next(
       new AppError(
-        "The user with the provided email address does not exist",
+        "The user with the provided phone number does not exist",
         401
       )
     );
