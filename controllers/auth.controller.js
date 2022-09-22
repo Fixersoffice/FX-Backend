@@ -6,6 +6,7 @@ const { successResMsg, errorResMsg } = require("../utils/libs/response");
 const AppError = require("../utils/libs/appError");
 const catchAsync = require("../utils/libs/catchAsync");
 const sendEMail = require("../utils/libs/email");
+const { generateOtp, sendSMS } = require("../utils/libs/helperFunc");
 
 const URL =
   process.env.NODE_ENV === "development"
@@ -298,7 +299,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
 
   try {
     // sent token to the user email provided.
-    const resetUrl = `${URL}/auth/reset/resetPassword/?confirmationToken=${resetToken}`;
+    const OTP = generateOtp();
 
     ejs.renderFile(
       path.join(__dirname, "../views/email-template.ejs"),
@@ -306,7 +307,7 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
         salutation: `Hello ${user.firstName}`,
         body: `<p>We received a request to reset your password for your account. We're here to help! \n </p>
         <p>Simply click on the link below to set a new password: \n <p> 
-        <strong><a href=${resetUrl}>Change my password</a></strong> \n
+        <strong><h1>${OTP}</h1></strong> \n
         <p>If you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email.\n <p> 
         <p>If you dont use this link within 1 hour, it will expire. \n <p>`,
       },
