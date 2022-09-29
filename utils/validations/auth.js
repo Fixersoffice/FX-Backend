@@ -16,6 +16,13 @@ const userSignUpSchema = Joi.object({
   address: Joi.string().required(),
 });
 
+const forgotPasswordSchema = Joi.object({
+  phoneNumber: Joi.string()
+  .regex(/^[+][0-9]{11}/)
+  .min(12)
+  .max(14),
+});
+
 const resendEmailVerificationSchema = Joi.object({
   email: Joi.string().email().required(),
 });
@@ -31,8 +38,19 @@ const loginSchema = Joi.object({
 });
 
 const resetPasswordSchema = Joi.object({
-  password: Joi.string().min(8).max(20).required(),
-  resettoken: Joi.string().optional(),
+  otp: Joi.string().required().max(5),
+  newPassword: Joi.string()
+  // regex for 8 characters, special characters, numbers and upper and lower case letters
+  .regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?.!@$%^&*-]).{8,}$/)
+  .min(8)
+  .max(20)
+  .required(),
+  retypeNewPassword: Joi.string()
+  // regex for 8 characters, special characters, numbers and upper and lower case letters
+  .regex(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?.!@$%^&*-]).{8,}$/)
+  .min(8)
+  .max(20)
+  .required(),
 });
 
 module.exports = {
@@ -40,5 +58,6 @@ module.exports = {
   resendEmailVerificationSchema,
   updatePasswordSchema,
   loginSchema,
+  forgotPasswordSchema,
   resetPasswordSchema,
 };
