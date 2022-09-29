@@ -7,12 +7,11 @@ const { validateSchema } = require("../../utils/validations/index");
 
 const {
   userSignUpSchema,
-  resendEmailVerificationSchema,
   loginSchema,
   resetPasswordSchema,
+  forgotPasswordSchema,
   updatePasswordSchema,
 } = require("../../utils/validations/auth");
-const { route } = require("express/lib/router");
 
 const getId = (req, res, next) => {
   const { id } = req.user;
@@ -21,39 +20,18 @@ const getId = (req, res, next) => {
 };
 
 // AUTH ROUTES
-router.post(
-  "/signup",
-  validateSchema(userSignUpSchema),
-  authController.createUser
-);
+router.post("/signup", validateSchema(userSignUpSchema), authController.createUser);
+
 router.post("/login", validateSchema(loginSchema), authController.login);
+
 router.post("/logout", authController.logout);
-router.get("/email/verify", authController.verifyEmail);
-router.put(
-  "/email/verify/resend",
-  validateSchema(resendEmailVerificationSchema),
-  authController.resendEmailVerification
-);
-router.post(
-  "/forgetPassword",
-  validateSchema(resendEmailVerificationSchema),
-  authController.forgetPassword
-);
-router.put(
-  "/resetPassword/:resettoken",
-  validateSchema(resetPasswordSchema),
-  authController.resetPassword
-);
+
+router.post("/forgetPassword", validateSchema(forgotPasswordSchema), authController.forgetPassword);
+
 
 // Restrict route to only AUTHENTICATED users
 // router.use(authController.protect);
-
 // Current User Routes
-router.patch(
-  "/updatePassword",
-  validateSchema(updatePasswordSchema),
-  authController.protect,
-  authController.updatePassword
-);
+router.patch("/updatePassword", validateSchema(updatePasswordSchema), authController.protect, authController.updatePassword);
 
 module.exports.authRouter = router;

@@ -1,5 +1,3 @@
-
-
 // Generate an OTP for user
 const generateOtp = () => {
     let otp = Math.floor(Math.random() * 90000) + 10000;
