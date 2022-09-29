@@ -191,6 +191,50 @@ exports.forgetPassword = catchAsync(async (req, res, next) => {
   }
 });
 
+// reset Password
+exports.resetPassword = catchAsync(async (req, res, next) => {
+
+  const { otp } = req.body;
+
+  const otpData = await Otp.findOne({ code: otp }).populate("user");
+
+  const { user } = otpData;
+
+  if (!otpData) {
+    return next(new AppError("Invalid OTP", 400));
+  }
+
+  if (otpData.expiresAt < Date.now()) {
+    return next(new AppError("OTP has expired", 400));
+  }
+
+  await Otp.deleteOne({code: otp});
+  
+  const { newPassword, retypeNewPassword } = req.body;
+
+  if (!newPassword || !retypeNewPassword) {
+    return next(
+      new AppError("Please provide new password and retype password", 400)
+    );
+  }
+
+  if (newPassword !== retypeNewPassword) {
+    return next(new AppError("Password does not match", 400));
+  }
+
+  const userData = await User.findById(user._id).select("+password");
+
+  userData.password = newPassword;
+  await userData.save();
+// // send mail notification
+
+const dataInfo = {
+  message: "Password reset successfull, you are now logged in!",
+};
+
+return successResMsg(res, 200, dataInfo);
+});
+
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token, currentUser;
