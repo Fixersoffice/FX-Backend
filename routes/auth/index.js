@@ -28,6 +28,7 @@ router.post("/logout", authController.logout);
 
 router.post("/forgetPassword", validateSchema(forgotPasswordSchema), authController.forgetPassword);
 
+router.put("/resetPassword", validateSchema(resetPasswordSchema), authController.resetPassword);
 
 // Restrict route to only AUTHENTICATED users
 // router.use(authController.protect);
