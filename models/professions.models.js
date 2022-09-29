@@ -3,13 +3,19 @@ const { Schema, model } = mongoose;
 
 const professionalSchema = new Schema(
   {
-    professionType: {
-      type: String,
-      required: [true, "Please enter your profession type!"],
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
   },
+  { timestamps: true },
   {
-    timestamps: true,
+    toObject: {
+      virtuals: true,
+    },
+    toJSON: {
+      virtuals: true,
+    },
   }
 );
 

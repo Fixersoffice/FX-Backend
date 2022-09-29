@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const ejs = require("ejs");
 const User = require("../models/user.model");
+const Otp = require('../models/otp.model');
 const { signAccessToken } = require("../utils/libs/jwt-helper");
 const { successResMsg, errorResMsg } = require("../utils/libs/response");
 const AppError = require("../utils/libs/appError");
@@ -154,92 +155,42 @@ exports.createUser = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.verifyEmail = catchAsync(async (req, res, next) => {
-  const { verification_token } = req.query;
+// forget password
+exports.forgetPassword = catchAsync(async (req, res, next) => {
+  // Get user based on email provieded
+  const user = await User.findOne({phoneNumber : req.body.phoneNumber });
 
-  if (!verification_token) {
-    return next(new AppError("Please provide verification token!", 400));
-  }
-
-  const decoded = await verifyAccessToken(verification_token);
-
-  if (
-    decoded.name !== "JsonWebTokenError" &&
-    decoded.name !== "TokenExpiredError"
-  ) {
-    const user = await User.findOne({ email: decoded.email }).select(
-      "+isVerified"
-    );
-
-    if (user.isVerified) {
-      return next(new AppError("Your email is already verified!", 400));
-    }
-
-    user.isVerified = true;
-    await user.save();
-
-    const data = {
-      message: "Your email has been successfully verified!",
-    };
-
-    return successResMsg(res, 200, data);
-  } else if (decoded.name === "TokenExpiredError") {
-    return next(new AppError("Your verification token has expired!", 400));
-  } else if (decoded.name === "JsonWebTokenError") {
-    return next(new AppError(decoded.message, 400));
-  } else {
-    return next(new AppError("Something went wrong", 400));
-  }
-});
-
-exports.resendEmailVerification = catchAsync(async (req, res, next) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email }).select("+isVerified");
-
+  // check if user exists
   if (!user) {
-    return next(new AppError("User not found", 404));
+    return next(
+      new AppError(
+        "The user with the provided phone number does not exist",
+        401
+      )
+    );
   }
 
-  if (user.isVerified) {
-    return next(new AppError("User already verified", 400));
+  try {
+    // sent token to the user email provided.
+    const {otp, expiryDate} = generateOtp();
+
+    const newOtp = await Otp.create({
+      code: otp,
+      user: user._id,
+      expiresAt: expiryDate,
+    });
+
+    // const message = `Your OTP is ${OTP}`;
+
+    // await sendSMS(message, user.phoneNumber);
+
+    const dataInfo = { message: "Otp Sent Successfully!", otp };
+    return successResMsg(res, 200, dataInfo);
+  } catch (error) {
+    return next(new AppError("There was an error sending an otp", 500));
   }
-
-  const data = {
-    email: req.body.email,
-  };
-
-  const token = await signAccessToken(data);
-  const verificationUrl = `${URL}/auth/email/verify/?verification_token=${token}`;
-
-  ejs.renderFile(
-    path.join(__dirname, "../views/email-template.ejs"),
-    {
-      salutation: `Hi ${req.body.firstName}`,
-      body: `Thank you for signing up on Fixers<br><br>
-    
-                Kindly <a href="${verificationUrl}">click here</a> to verify your email.
-                <br><br>
-                Need help? ask at <a href="mailto:hello@fixers.com">hello@fixers.com</a>
-                `,
-    },
-    async (err, data) => {
-      //use the data here as the mail body
-      const options = {
-        email: req.body.email,
-        subject: "Verify Your Email",
-        message: data,
-      };
-      await sendEmail(options);
-    }
-  );
-
-  const dataInfo = {
-    message: "Verification email re-sent",
-  };
-
-  return successResMsg(res, 200, dataInfo);
 });
+
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token, currentUser;
@@ -276,117 +227,6 @@ exports.protect = catchAsync(async (req, res, next) => {
   res.local.user = currentUser;
 
   next();
-});
-
-// forget password
-exports.forgetPassword = catchAsync(async (req, res, next) => {
-  // Get user based on email provieded
-  const user = await User.findOne({phoneNumber : req.body.phoneNumber });
-
-  // check if user exists
-  if (!user) {
-    return next(
-      new AppError(
-        "The user with the provided phone number does not exist",
-        401
-      )
-    );
-  }
-
-  // generate random token
-  const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
-
-  try {
-    // sent token to the user email provided.
-    const OTP = generateOtp();
-
-    ejs.renderFile(
-      path.join(__dirname, "../views/email-template.ejs"),
-      {
-        salutation: `Hello ${user.firstName}`,
-        body: `<p>We received a request to reset your password for your account. We're here to help! \n </p>
-        <p>Simply click on the link below to set a new password: \n <p> 
-        <strong><h1>${OTP}</h1></strong> \n
-        <p>If you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email.\n <p> 
-        <p>If you dont use this link within 1 hour, it will expire. \n <p>`,
-      },
-      async (err, data) => {
-        //use the data here as the mail body
-        const options = {
-          email: req.body.email,
-          subject: "Password Reset!",
-          message: data,
-        };
-        await sendEmail(options);
-      }
-    );
-
-    const dataInfo = { message: "Password reset token sent!" };
-    return successResMsg(res, 200, dataInfo);
-  } catch (error) {
-    user.passwordResetToken = undefined;
-    user.passwordResetExpires = undefined;
-    user.save({ validateBeforeSave: false });
-
-    return next(new AppError("There was an error sending the email", 500));
-  }
-});
-
-// reset Password
-exports.resetPassword = catchAsync(async (req, res, next) => {
-  const { resettoken: confirmationToken } = req.params;
-
-  // get user based on the token
-  const hashedToken = await crypto
-    .createHash("sha256")
-    .update(confirmationToken, "utf-8")
-    .digest("hex");
-
-  const user = await User.findOne({
-    passwordResetToken: hashedToken,
-    passwordResetExpires: { $gt: Date.now() },
-  });
-
-  // check if token is still valid / not Expired
-  if (!user) {
-    return next(new AppError("Invalid or expired token", 400));
-  }
-
-  user.password = req.body.password;
-  user.passwordResetToken = undefined;
-  user.passwordResetExpires = undefined;
-
-  await user.save(); // No need to turn off validator as it's required
-
-  // Update passwordChangedAt property in userModel
-
-  const loginUrl = `${URL}/login`;
-
-  // send mail notification
-
-  ejs.renderFile(
-    path.join(__dirname, "../views/email-template.ejs"),
-    {
-      salutation: `Hello ${user.firstName}`,
-      body: `<p> PASSWORD CHANGE NOTIFICATION \n </p>
-      <p>We are pleased to inform you that based on your recent request, your password has been changed successfully. \n <p> 
-      <p>Click the link below to log in with your new password:\n <p> 
-      <strong><a href=${loginUrl}>Login to your account</a></strong> \n`,
-    },
-    async (err, data) => {
-      //use the data here as the mail body
-      const options = {
-        email: user.email,
-        subject: "Password Reset Successfull!",
-        message: data,
-      };
-      await sendEmail(options);
-    }
-  );
-
-  // Log in user -- send JWT
-  createSendToken(user, 200, res);
 });
 
 // Updating password of a logged in user
